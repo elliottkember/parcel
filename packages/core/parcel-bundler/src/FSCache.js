@@ -38,6 +38,7 @@ class FSCache {
     // Create sub-directories for every possible hex value
     // This speeds up large caches on many file systems since there are fewer files in a single directory.
     for (let i = 0; i < 256; i++) {
+      console.log(`Creating ${i.toString(16)}`);
       await fs.mkdirp(path.join(this.dir, ('00' + i.toString(16)).slice(-2)));
     }
 
@@ -46,6 +47,13 @@ class FSCache {
 
   getCacheFile(filename) {
     let hash = md5(this.optionsHash + filename);
+    console.log(
+      `getCacheFile(${filename}) = ${path.join(
+        this.dir,
+        hash.slice(0, 2),
+        hash.slice(2) + '.json'
+      )}`
+    );
     return path.join(this.dir, hash.slice(0, 2), hash.slice(2) + '.json');
   }
 
@@ -78,6 +86,7 @@ class FSCache {
       await fs.writeFile(this.getCacheFile(filename), JSON.stringify(data));
       this.invalidated.delete(filename);
     } catch (err) {
+      console.log(`Error writing ${filename}`);
       logger.error(`Error writing to cache: ${err.message}`);
     }
   }
@@ -98,6 +107,7 @@ class FSCache {
 
   async read(filename) {
     if (this.invalidated.has(filename)) {
+      console.log(`Invalidated: ${filename}`);
       return null;
     }
 
@@ -108,17 +118,20 @@ class FSCache {
       let cacheStats = await fs.stat(cacheFile);
 
       if (stats.mtime > cacheStats.mtime) {
+        console.log(`stats.mtime ${filename}`);
         return null;
       }
 
       let json = await fs.readFile(cacheFile);
       let data = JSON.parse(json);
       if (!(await this.checkDepMtimes(data))) {
+        console.log(`checkDepMtimes(${filename}) false`);
         return null;
       }
 
       return data;
     } catch (err) {
+      console.log(`Error reading ${filename}`, err);
       return null;
     }
   }
